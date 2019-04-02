@@ -12,6 +12,11 @@ import (
 const MaxK = 100
 
 func main() {
+	evaulateKNN()
+	getBaseline()
+}
+
+func evaulateKNN() {
 	var topK int
 	var topScore float64
 
@@ -24,8 +29,8 @@ func main() {
 		}
 
 		log.Printf("Result (K:%d) = %f", i, result)
-		if result > topScore {
-			topScore = result
+		if result.F1 > topScore {
+			topScore = result.F1
 			topK = i
 		}
 	}
@@ -37,7 +42,7 @@ func main() {
 // KNNClassifier implements the harness.Predictor interface
 type KNNClassifier struct {
 	k            int
-	trainingData mat.Matrix
+	trainingData *mat.Dense
 	rows         int
 	labels       []string
 }
@@ -49,15 +54,14 @@ func NewKNNClassifier(k int) *KNNClassifier {
 }
 
 // Fit is dumb, do everything in predict
-func (k *KNNClassifier) Fit(trainingData mat.Matrix, labels []string) {
+func (k *KNNClassifier) Fit(trainingData *mat.Dense, labels []string) {
 	k.rows = len(labels)
 	k.trainingData = trainingData
 	k.labels = labels
-
 }
 
 // Predict on the test data based upon the training data
-func (k *KNNClassifier) Predict(testData mat.Matrix) []string {
+func (k *KNNClassifier) Predict(testData *mat.Dense) []string {
 	lenTestData, _ := testData.Dims()
 	predictions := make([]string, lenTestData)
 
@@ -66,7 +70,7 @@ func (k *KNNClassifier) Predict(testData mat.Matrix) []string {
 		distances := make([]float64, k.rows)
 		inds := make([]int, k.rows)
 		for j := 0; j < k.rows; j++ {
-			distances[j] = vectors.EuclidianDistance(testData.(mat.RowViewer).RowView(i), k.trainingData.(mat.RowViewer).RowView(j))
+			distances[j] = vectors.EuclidianDistance(testData.RowView(i), k.trainingData.RowView(j))
 		}
 
 		floats.Argsort(distances, inds)
@@ -86,7 +90,7 @@ func (k *KNNClassifier) Predict(testData mat.Matrix) []string {
 			}
 		}
 
-		if count1 > count0 {
+		if count1 >= count0 {
 			predictions[i] = "1"
 		} else {
 			predictions[i] = "0"
@@ -94,5 +98,34 @@ func (k *KNNClassifier) Predict(testData mat.Matrix) []string {
 	}
 
 	// log.Println(predictions)
+	return predictions
+}
+
+func getBaseline() {
+	model := &BaselineClassifier{}
+
+	result, err := harness.Evaluate("diabetes.csv", model)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	log.Printf("Baseline Result = %f", result.F1)
+}
+
+// BaselineClassifier can calulate a baseline if you set everything to 1
+type BaselineClassifier struct{}
+
+// Fit doesn't need to do anything
+func (b *BaselineClassifier) Fit(trainingData *mat.Dense, labels []string) {
+}
+
+// Predict on the test data based upon the training data
+func (b *BaselineClassifier) Predict(testData *mat.Dense) []string {
+	rowCount, _ := testData.Dims()
+	predictions := make([]string, rowCount)
+	for i := 0; i < rowCount; i++ {
+		predictions[i] = "1"
+	}
+
 	return predictions
 }
