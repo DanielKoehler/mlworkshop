@@ -67,38 +67,43 @@ func (k *KNNClassifier) Predict(testData *mat.Dense) []string {
 
 	// loop over the test data and calculate the distance
 	for i := 0; i < lenTestData; i++ {
-		distances := make([]float64, k.rows)
-		inds := make([]int, k.rows)
-		for j := 0; j < k.rows; j++ {
-			distances[j] = vectors.EuclidianDistance(testData.RowView(i), k.trainingData.RowView(j))
-		}
+		predictions[i] = k.makePrediction(testData.RowView(i))
+	}
+	// log.Println(predictions)
+	return predictions
+}
 
-		floats.Argsort(distances, inds)
+func (k *KNNClassifier) makePrediction(row mat.Vector) string {
 
-		smallest := inds[0:k.k]
-		// log.Println(smallest)
-		// log.Println(k.k)
-		var count0, count1 int
-		for _, x := range smallest {
-			// log.Println(x)
-			// log.Println(k.labels[x])
-			switch k.labels[x] {
-			case "1":
-				count1++
-			case "0":
-				count0++
-			}
-		}
+	distances := make([]float64, k.rows)
+	inds := make([]int, k.rows)
+	for j := 0; j < k.rows; j++ {
+		distances[j] = vectors.EuclidianDistance(row, k.trainingData.RowView(j))
+	}
 
-		if count1 >= count0 {
-			predictions[i] = "1"
-		} else {
-			predictions[i] = "0"
+	floats.Argsort(distances, inds)
+
+	smallest := inds[0:k.k]
+	// log.Println(smallest)
+	// log.Println(k.k)
+	var count0, count1 int
+	for _, x := range smallest {
+		// log.Println(x)
+		// log.Println(k.labels[x])
+		switch k.labels[x] {
+		case "1":
+			count1++
+		case "0":
+			count0++
 		}
 	}
 
-	// log.Println(predictions)
-	return predictions
+	if count1 >= count0 {
+		return "1"
+	} else {
+		return "0"
+	}
+
 }
 
 func getBaseline() {
